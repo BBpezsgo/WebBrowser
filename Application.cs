@@ -14,7 +14,7 @@ namespace WebBrowser
 
         bool IsRunning;
 
-        TheWebBrowser WebBrowser;
+        readonly TheWebBrowser WebBrowser;
 
         public Application()
         {
@@ -75,7 +75,7 @@ namespace WebBrowser
 
         void Render()
         {
-            SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
+            SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
             SDL_RenderClear(Renderer);
 
             WebBrowser.Render();

@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 
 namespace WebBrowser
 {
+    [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public struct Vector2
     {
         public float X;
@@ -19,7 +16,7 @@ namespace WebBrowser
             Y = y;
         }
 
-        public readonly Vector2Int RountToInt() => new(Utils.RoundToInt(X), Utils.RoundToInt(Y));
+        public readonly Vector2Int RoundToInt() => new(Utils.RoundToInt(X), Utils.RoundToInt(Y));
 
         public static Vector2 operator +(Vector2 a, Vector2 b)
             => new(a.X + b.X, a.Y + b.Y);
@@ -32,8 +29,12 @@ namespace WebBrowser
 
         public static Vector2 operator /(Vector2 a, float b)
             => new(a.X / b, a.Y / b);
+
+        public override readonly string ToString() => $"({X.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {Y.ToString(System.Globalization.CultureInfo.InvariantCulture)})";
+        readonly string GetDebuggerDisplay() => ToString();
     }
 
+    [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public struct Vector2Int
     {
         public int X;
@@ -66,5 +67,8 @@ namespace WebBrowser
             x = v.X,
             y = v.Y,
         };
+
+        public override readonly string ToString() => $"({X}, {Y})";
+        readonly string GetDebuggerDisplay() => ToString();
     }
 }

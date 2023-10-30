@@ -11,31 +11,31 @@ namespace ProgrammingLanguage.Css
         public static Sides<Number> ToNumbers(this Sides<Value> v) => v.ToNumbers(new Number(0, Unit.None));
         public static Sides<Number> ToNumbers(this Sides<Value> v, Number @default) => v.ToAny(value =>
         {
-            if (value.type != Value.Type.Number) return @default;
-            return value.number.Value;
+            if (!value.IsNumber) return @default;
+            return value.Number;
         });
 
         public static Sides<Color> ToColors(this Sides<Value> v) => v.ToColors(new Color(0, 0, 0));
         public static Sides<Color> ToColors(this Sides<Value> v, Color @default) => v.ToAny(value =>
         {
-            if (value.type != Value.Type.Color) return @default;
-            return value.color.Value;
+            if (!value.IsColor) return @default;
+            return value.Color;
         });
 
         public static Sides<string> ToOthers(this Sides<Value> v) => v.ToOthers(null);
         public static Sides<string> ToOthers(this Sides<Value> v, string @default) => v.ToAny(value =>
         {
-            if (value.type != Value.Type.Other) return @default;
-            return value.other;
+            if (!value.IsOther) return @default;
+            return value.Other;
         });
 
         public static Sides<int> ToPixels(this Sides<Value> v) => v.ToPixels(0);
         public static Sides<int> ToPixels(this Sides<Value> v, int @default) => v.ToAny(value =>
         {
-            if (value.type != Value.Type.Number) return @default;
-            return value.number.Value.Unit switch
+            if (!value.IsNumber) return @default;
+            return value.Number.Unit switch
             {
-                Unit.Pixels => value.number.Value.Int,
+                Unit.Pixels => value.Number.Int,
                 _ => @default,
             };
         });
@@ -48,46 +48,46 @@ namespace ProgrammingLanguage.Css
 
         public static RectInt Extend(this RectInt rect, SidesInt sides)
         {
-            rect.yMin -= sides.Top;
-            rect.xMin -= sides.Left;
-            rect.yMax += sides.Bottom;
-            rect.xMax += sides.Right;
+            rect.Top -= sides.Top;
+            rect.Left -= sides.Left;
+            rect.Bottom += sides.Bottom;
+            rect.Right += sides.Right;
             return rect;
         }
 
         public static RectInt Extend(this RectInt rect, Sides<int> sides)
         {
-            rect.yMin -= sides.Top;
-            rect.xMin -= sides.Left;
-            rect.yMax += sides.Bottom;
-            rect.xMax += sides.Right;
+            rect.Top -= sides.Top;
+            rect.Left -= sides.Left;
+            rect.Bottom += sides.Bottom;
+            rect.Right += sides.Right;
             return rect;
         }
 
         public static Rect Extend(this Rect rect, Sides<float> sides)
         {
-            rect.yMin -= sides.Top;
-            rect.xMin -= sides.Left;
-            rect.yMax += sides.Bottom;
-            rect.xMax += sides.Right;
+            rect.Top -= sides.Top;
+            rect.Left -= sides.Left;
+            rect.Bottom += sides.Bottom;
+            rect.Right += sides.Right;
             return rect;
         }
 
         public static Rect Extend(this Rect rect, SidesInt sides)
         {
-            rect.yMin -= sides.Top;
-            rect.xMin -= sides.Left;
-            rect.yMax += sides.Bottom;
-            rect.xMax += sides.Right;
+            rect.Top -= sides.Top;
+            rect.Left -= sides.Left;
+            rect.Bottom += sides.Bottom;
+            rect.Right += sides.Right;
             return rect;
         }
 
         public static Rect Extend(this Rect rect, Sides<int> sides)
         {
-            rect.yMin -= sides.Top;
-            rect.xMin -= sides.Left;
-            rect.yMax += sides.Bottom;
-            rect.xMax += sides.Right;
+            rect.Top -= sides.Top;
+            rect.Left -= sides.Left;
+            rect.Bottom += sides.Bottom;
+            rect.Right += sides.Right;
             return rect;
         }
 
@@ -387,41 +387,41 @@ namespace ProgrammingLanguage.Css
 
             if (values.Length == 1)
             {
-                if (values[0].type == Value.Type.Number && values[0].number.Value.Unit == Unit.Pixels)
+                if (values[0].IsNumber && values[0].Number.Unit == Unit.Pixels)
                 {
-                    result = new SidesInt(values[0].number.Value.Int);
+                    result = new SidesInt(values[0].Number.Int);
                 }
             }
             else if (values.Length == 2)
             {
-                if (values[0].type == Value.Type.Number && values[0].number.Value.Unit == Unit.Pixels)
+                if (values[0].IsNumber && values[0].Number.Unit == Unit.Pixels)
                 {
-                    result.Top = values[0].number.Value.Int;
-                    result.Bottom = values[0].number.Value.Int;
+                    result.Top = values[0].Number.Int;
+                    result.Bottom = values[0].Number.Int;
                 }
-                if (values[1].type == Value.Type.Number && values[1].number.Value.Unit == Unit.Pixels)
+                if (values[1].IsNumber && values[1].Number.Unit == Unit.Pixels)
                 {
-                    result.Right = values[1].number.Value.Int;
-                    result.Left = values[1].number.Value.Int;
+                    result.Right = values[1].Number.Int;
+                    result.Left = values[1].Number.Int;
                 }
             }
             else if (values.Length == 4)
             {
-                if (values[0].type == Value.Type.Number && values[0].number.Value.Unit == Unit.Pixels)
+                if (values[0].IsNumber && values[0].Number.Unit == Unit.Pixels)
                 {
-                    result.Top = values[0].number.Value.Int;
+                    result.Top = values[0].Number.Int;
                 }
-                if (values[1].type == Value.Type.Number && values[1].number.Value.Unit == Unit.Pixels)
+                if (values[1].IsNumber && values[1].Number.Unit == Unit.Pixels)
                 {
-                    result.Right = values[1].number.Value.Int;
+                    result.Right = values[1].Number.Int;
                 }
-                if (values[2].type == Value.Type.Number && values[2].number.Value.Unit == Unit.Pixels)
+                if (values[2].IsNumber && values[2].Number.Unit == Unit.Pixels)
                 {
-                    result.Bottom = values[2].number.Value.Int;
+                    result.Bottom = values[2].Number.Int;
                 }
-                if (values[3].type == Value.Type.Number && values[3].number.Value.Unit == Unit.Pixels)
+                if (values[3].IsNumber && values[3].Number.Unit == Unit.Pixels)
                 {
-                    result.Left = values[3].number.Value.Int;
+                    result.Left = values[3].Number.Int;
                 }
             }
 
@@ -447,9 +447,9 @@ namespace ProgrammingLanguage.Css
 
                 bool match1 = subselector.type switch
                 {
-                    SimpleSelector.Type.TagName => node.Name == subselector.tagName,
-                    SimpleSelector.Type.ID => node.GetAttributeValue("id", null) == subselector.id,
-                    SimpleSelector.Type.Class => node.HasClass(subselector.@class),
+                    SimpleSelector.Type.TagName => node.Name == subselector.TagName,
+                    SimpleSelector.Type.ID => node.GetAttributeValue("id", null) == subselector.Id,
+                    SimpleSelector.Type.Class => node.HasClass(subselector.ClassName),
                     _ => false,
                 };
 

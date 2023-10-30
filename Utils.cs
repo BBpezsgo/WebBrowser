@@ -21,9 +21,9 @@
 
     public static class Extensions
     {
-        public static T PeekOrDefault<T>(this Stack<T> stack, T @default = default)
+        public static T? PeekOrDefault<T>(this Stack<T> stack, T? @default = default)
         {
-            if (stack.TryPeek(out T result))
+            if (stack.TryPeek(out T? result))
             { return result; }
             return @default;
         }

@@ -169,23 +169,21 @@ namespace WebBrowser
         readonly HttpClient HttpClient;
         readonly List<DownloadTask> Tasks;
         readonly Generator GraphicsElementGenerator;
-        readonly List<TextInstance> TextInstances;
-        readonly List<FontInstance> FontInstances;
         readonly Stylesheet DefaultStylesheet;
 
-        IntPtr Renderer;
+        Vector2Int PageRect;
+        Renderer Renderer;
+        int FontSize = 12;
 
         public TheWebBrowser(Vector2Int size)
         {
             HttpClient = new HttpClient();
             Tasks = new List<DownloadTask>();
+            PageRect = size;
             GraphicsElementGenerator = new Generator()
             {
-                PageArea = new RectInt(0, 0, size.X, size.Y),
+                PageArea = new RectInt(Vector2Int.Zero, size),
             };
-
-            TextInstances = new List<TextInstance>();
-            FontInstances = new List<FontInstance>();
 
             DefaultStylesheet = new Parser().Parse(File.ReadAllText("C:\\Users\\bazsi\\source\\repos\\WebBrowser\\DefaultStylesheet.css"));
         }
@@ -228,39 +226,17 @@ namespace WebBrowser
                     case ElementKind.Text:
                         {
                             ElementLabel elementLabel = (ElementLabel)element;
-                            TextInstance? textInstance = GetTextInstance(elementLabel.Text, 8, elementLabel.Color);
-                            if (textInstance != null)
-                            {
-                                SDL_Rect dest = new()
-                                {
-                                    x = elementLabel.Dimensions.Content.X,
-                                    y = elementLabel.Dimensions.Content.Y,
-                                    w = textInstance.Width,
-                                    h = textInstance.Height,
-                                };
-                                SDL_RenderCopy(Renderer, textInstance.Texture, IntPtr.Zero, ref dest);
-                            }
+
+                            Renderer.DrawText(elementLabel.Dimensions.Content, elementLabel.Text, FontSize, elementLabel.Color); ;
+
                             break;
                         }
                     case ElementKind.Button:
                         {
                             ElementButton elementButton = (ElementButton)element;
-                            SDL_Rect rect = elementButton.Dimensions.Content;
-                            SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
-                            SDL_RenderDrawRect(Renderer, ref rect);
 
-                            TextInstance? textInstance = GetTextInstance(elementButton.Text, 8, Color.Black);
-                            if (textInstance != null)
-                            {
-                                SDL_Rect dest = new()
-                                {
-                                    x = elementButton.Dimensions.Content.X,
-                                    y = elementButton.Dimensions.Content.Y,
-                                    w = textInstance.Width,
-                                    h = textInstance.Height,
-                                };
-                                SDL_RenderCopy(Renderer, textInstance.Texture, IntPtr.Zero, ref dest);
-                            }
+                            Renderer.FillRect(elementButton.Dimensions.BorderRect, Color.Gray);
+                            Renderer.DrawText(elementButton.Dimensions.Content, elementButton.Text, FontSize, Color.Black);
 
                             break;
                         }
@@ -268,28 +244,9 @@ namespace WebBrowser
                         {
                             ElementTextField elementTextField = (ElementTextField)element;
 
-                            SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
-                            SDL_Point[] points = new SDL_Point[]
-                            {
-                                elementTextField.Dimensions.BorderRect.TopLeft,
-                                elementTextField.Dimensions.BorderRect.TopRight,
-                                elementTextField.Dimensions.BorderRect.BottomRight,
-                                elementTextField.Dimensions.BorderRect.BottomLeft,
-                            };
-                            SDL_RenderDrawLines(Renderer, points, points.Length);
-
-                            TextInstance? textInstance = GetTextInstance(elementTextField.Manager.Buffer, 8, Color.White);
-                            if (textInstance != null)
-                            {
-                                SDL_Rect dest = new()
-                                {
-                                    x = elementTextField.Dimensions.Content.X,
-                                    y = elementTextField.Dimensions.Content.Y,
-                                    w = textInstance.Width,
-                                    h = textInstance.Height,
-                                };
-                                SDL_RenderCopy(Renderer, textInstance.Texture, IntPtr.Zero, ref dest);
-                            }
+                            Renderer.OutlineRect(elementTextField.Dimensions.BorderRect, Color.Black);
+                            
+                            Renderer.DrawText(elementTextField.Dimensions.Content, elementTextField.Manager.Buffer, FontSize, Color.Black);
 
                             break;
                         }
@@ -307,28 +264,9 @@ namespace WebBrowser
                         {
                             ElementSelect elementSelect = (ElementSelect)element;
 
-                            SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
-                            SDL_Point[] points = new SDL_Point[]
-                            {
-                                elementSelect.Dimensions.BorderRect.TopLeft,
-                                elementSelect.Dimensions.BorderRect.TopRight,
-                                elementSelect.Dimensions.BorderRect.BottomRight,
-                                elementSelect.Dimensions.BorderRect.BottomLeft,
-                            };
-                            SDL_RenderDrawLines(Renderer, points, points.Length);
+                            Renderer.OutlineRect(elementSelect.Dimensions.BorderRect, Color.Black);
 
-                            TextInstance? textInstance = GetTextInstance(elementSelect.Label, 8, Color.White);
-                            if (textInstance != null)
-                            {
-                                SDL_Rect dest = new()
-                                {
-                                    x = elementSelect.Dimensions.Content.X,
-                                    y = elementSelect.Dimensions.Content.Y,
-                                    w = textInstance.Width,
-                                    h = textInstance.Height,
-                                };
-                                SDL_RenderCopy(Renderer, textInstance.Texture, IntPtr.Zero, ref dest);
-                            }
+                            Renderer.DrawText(elementSelect.Dimensions.Content, elementSelect.Label, FontSize, Color.Black);
 
                             break;
                         }
@@ -338,56 +276,6 @@ namespace WebBrowser
                         }
                 }
             }
-        }
-
-        TextInstance? GetTextInstance(string text, int fontSize, Color color)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return null;
-
-            foreach (TextInstance textInstance in TextInstances)
-            {
-                if (!string.Equals(textInstance.Text, text)) continue;
-                if (textInstance.FontSize != fontSize) continue;
-                if (textInstance.Color != color) continue;
-                return textInstance;
-            }
-
-            FontInstance fontInstance = GetFontInstance(fontSize);
-
-            TextInstance newInstance = new(Renderer, fontInstance.Font, fontSize, text, color);
-            TextInstances.Add(newInstance);
-            return newInstance;
-        }
-
-        TextInstance? GetTextInstance(string text, int fontSize)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return null;
-
-            foreach (TextInstance textInstance in TextInstances)
-            {
-                if (!string.Equals(textInstance.Text, text)) continue;
-                if (textInstance.FontSize != fontSize) continue;
-                return textInstance;
-            }
-
-            FontInstance fontInstance = GetFontInstance(fontSize);
-
-            TextInstance newInstance = new(Renderer, fontInstance.Font, fontSize, text, Color.White);
-            TextInstances.Add(newInstance);
-            return newInstance;
-        }
-
-        FontInstance GetFontInstance(int fontSize)
-        {
-            foreach (FontInstance fontInstance in FontInstances)
-            {
-                if (fontInstance.FontSize != fontSize) continue;
-                return fontInstance;
-            }
-
-            FontInstance newInstance = FontInstance.Create("C:\\Users\\bazsi\\source\\repos\\WebBrowser\\Font.ttf", fontSize);
-            FontInstances.Add(newInstance);
-            return newInstance;
         }
 
         public void LoadPage(string url)
@@ -411,20 +299,15 @@ namespace WebBrowser
             HtmlDocument document = new();
             document.LoadHtml(html);
 
-            Utils.DisposeAndClear(TextInstances);
-            Utils.DisposeAndClear(FontInstances);
+            Renderer.Dispose();
 
             GraphicsElementGenerator.Reset();
-            GraphicsElementGenerator.Stylesheets.Add(DefaultStylesheet);
+            GraphicsElementGenerator.PageArea = new RectInt(Vector2Int.Zero, PageRect);
+            // GraphicsElementGenerator.Stylesheets.Add(DefaultStylesheet);
             GraphicsElementGenerator.GenerateLayout(document, MeasureText, MeasureImage);
         }
 
-        Vector2Int MeasureText(string text, int fontSize)
-        {
-            TextInstance? textInstance = GetTextInstance(text, fontSize);
-            if (textInstance == null) return Vector2Int.Zero;
-            return new Vector2Int(textInstance.Width, textInstance.Height);
-        }
+        Vector2Int MeasureText(string text, int fontSize) => Renderer.MeasureText(text, FontSize);
 
         bool MeasureImage(string url, out Vector2Int size)
         {
@@ -435,15 +318,14 @@ namespace WebBrowser
         public void Dispose()
         {
             Utils.DisposeAndClear(Tasks);
-            Utils.DisposeAndClear(TextInstances);
-            Utils.DisposeAndClear(FontInstances);
 
+            Renderer.Dispose();
             HttpClient.Dispose();
         }
 
         internal unsafe void Initialize(IntPtr renderer)
         {
-            Renderer = renderer;
+            Renderer = new Renderer(renderer);
         }
     }
 }

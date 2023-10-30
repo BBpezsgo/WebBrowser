@@ -4,8 +4,6 @@ using System.Globalization;
 using System.Text;
 using Debug = WebBrowser.Debug;
 
-#nullable disable
-
 namespace ProgrammingLanguage.Css
 {
     public class DeclarationsContainer : IReadOnlyCollection<Declaration>, IReadOnlyList<Declaration>
@@ -13,7 +11,7 @@ namespace ProgrammingLanguage.Css
         readonly Declaration[] Declarations;
         public int Count => Declarations.Length;
 
-        public static DeclarationsContainer Empty => new(new Declaration[0]);
+        public static DeclarationsContainer Empty => new(Array.Empty<Declaration>());
 
         public Declaration this[int index] => Declarations[index];
         public Declaration this[Index index] => Declarations[index];
@@ -26,7 +24,7 @@ namespace ProgrammingLanguage.Css
                     if (!string.Equals(item.property, property, StringComparison.InvariantCulture)) continue;
                     return item.values;
                 }
-                return new Value[0];
+                return Array.Empty<Value>();
             }
         }
 
@@ -78,24 +76,24 @@ namespace ProgrammingLanguage.Css
             Value valueBottom = this.GetValue(baseProperty + "-bottom") ?? default;
             Value valueRight = this.GetValue(baseProperty + "-right") ?? default;
 
-            if (valueTop.type == Value.Type.Number && valueTop.number.Value.Unit == Unit.Pixels)
+            if (valueTop.IsNumber && valueTop.Number.Unit == Unit.Pixels)
             {
-                result.Top = valueTop.number.Value.Int;
+                result.Top = valueTop.Number.Int;
             }
 
-            if (valueLeft.type == Value.Type.Number && valueLeft.number.Value.Unit == Unit.Pixels)
+            if (valueLeft.IsNumber && valueLeft.Number.Unit == Unit.Pixels)
             {
-                result.Left = valueLeft.number.Value.Int;
+                result.Left = valueLeft.Number.Int;
             }
 
-            if (valueBottom.type == Value.Type.Number && valueBottom.number.Value.Unit == Unit.Pixels)
+            if (valueBottom.IsNumber && valueBottom.Number.Unit == Unit.Pixels)
             {
-                result.Bottom = valueBottom.number.Value.Int;
+                result.Bottom = valueBottom.Number.Int;
             }
 
-            if (valueRight.type == Value.Type.Number && valueRight.number.Value.Unit == Unit.Pixels)
+            if (valueRight.IsNumber && valueRight.Number.Unit == Unit.Pixels)
             {
-                result.Right = valueRight.number.Value.Int;
+                result.Right = valueRight.Number.Int;
             }
 
             return result;
@@ -120,20 +118,23 @@ namespace ProgrammingLanguage.Css
             return true;
         }
 
-        public string GetString(string property) => TryGetString(property, out string result) ? result : null;
+        public string? GetString(string property) => TryGetString(property, out string result) ? result : null;
         public bool TryGetString(string property, out string value)
         {
             Value[] values = this[property];
             for (int i = 0; i < values.Length; i++)
             {
-                if (values[i].type == Value.Type.Other)
+                if (values[i].IsOther)
                 {
-                    value = values[i].other;
+                    value = values[i].Other;
                     return true;
                 }
             }
+
+#pragma warning disable CS8625
             value = null;
             return false;
+#pragma warning restore CS8625
         }
 
         public Number? GetNumber(string property) => TryGetNumber(property, out Number result) ? result : null;
@@ -142,9 +143,9 @@ namespace ProgrammingLanguage.Css
             Value[] values = this[property];
             for (int i = 0; i < values.Length; i++)
             {
-                if (values[i].type == Value.Type.Number)
+                if (values[i].IsNumber)
                 {
-                    number = values[i].number.Value;
+                    number = values[i].Number;
                     return true;
                 }
             }
@@ -159,9 +160,9 @@ namespace ProgrammingLanguage.Css
             Value[] values = this[property];
             for (int i = 0; i < values.Length; i++)
             {
-                if (values[i].type == Value.Type.Color)
+                if (values[i].IsColor)
                 {
-                    color = values[i].color.Value;
+                    color = values[i].Color;
                     return true;
                 }
             }
@@ -190,6 +191,12 @@ namespace ProgrammingLanguage.Css
         public Selector selector;
         public DeclarationsContainer declarations;
 
+        public Rule(Selector selector, IEnumerable<Declaration> declarations)
+        {
+            this.selector = selector;
+            this.declarations = new DeclarationsContainer(declarations.ToArray());
+        }
+
         public override string ToString() => $"{selector} {{{((declarations?.Count ?? 0) > 0 ? " ... " : " ")}}}";
 
         public bool TryGetProperty(string property, out Value[] values)
@@ -201,8 +208,10 @@ namespace ProgrammingLanguage.Css
                 return true;
             }
 
+#pragma warning disable CS8625
             values = null;
             return false;
+#pragma warning restore CS8625
         }
 
         internal void RemoveUnsupportedProperties(string[] supportedProperties)
@@ -229,7 +238,7 @@ namespace ProgrammingLanguage.Css
         public readonly SimpleSelector[] Simple;
         public readonly char[] Combinators;
 
-        public static Selector Empty => new(new SimpleSelector[0], new char[0]);
+        public static Selector Empty => new(Array.Empty<SimpleSelector>(), Array.Empty<char>());
 
         public Selector(IEnumerable<SimpleSelector> simple, IEnumerable<char> combinators)
         {
@@ -239,7 +248,7 @@ namespace ProgrammingLanguage.Css
 
         public override readonly string ToString()
         {
-            string result = "";
+            string result = string.Empty;
 
             bool notFirstOne = false;
 
@@ -273,11 +282,15 @@ namespace ProgrammingLanguage.Css
         }
 
         public readonly Type type;
-        public readonly string tagName;
-        public readonly string id;
-        public readonly string @class;
 
-        public readonly string elementState;
+        public readonly string TagName => tagName ?? throw new NullReferenceException();
+        public readonly string Id => id ?? throw new NullReferenceException();
+        public readonly string ClassName => @class ?? throw new NullReferenceException();
+
+        readonly string? tagName;
+        readonly string? id;
+        readonly string? @class;
+        public readonly string? elementState;
 
         public SimpleSelector(Type type, string value, string elementState) : this()
         {
@@ -310,9 +323,9 @@ namespace ProgrammingLanguage.Css
         {
             string result = type switch
             {
-                Type.TagName => tagName,
-                Type.ID => $"#{id}",
-                Type.Class => $".{@class}",
+                Type.TagName => TagName,
+                Type.ID => $"#{Id}",
+                Type.Class => $".{ClassName}",
                 _ => "???",
             };
             if (!string.IsNullOrEmpty(elementState))
@@ -341,13 +354,16 @@ namespace ProgrammingLanguage.Css
             Other,
         }
 
-        public readonly Color? color;
-        public readonly Number? number;
-        public readonly string other;
+        readonly Color? color;
+        readonly Number? number;
+        readonly string? other;
 
         public readonly Type type;
 
-        public readonly Number NumberOrZero => IsNumber ? number.Value : new Number(0, Unit.Pixels);
+        public readonly Color Color => color ?? throw new NullReferenceException();
+        public readonly Number Number => number ?? throw new NullReferenceException();
+        public readonly string Other => other ?? throw new NullReferenceException();
+        public readonly Number NumberOrZero => IsNumber ? Number : new Number(0, Unit.Pixels);
 
         public bool IsColor => type == Type.Color;
         public bool IsNumber => type == Type.Number;
@@ -383,25 +399,25 @@ namespace ProgrammingLanguage.Css
 
         public override readonly string ToString() => type switch
         {
-            Type.Color => color.Value.ToString(),
-            Type.Number => number.Value.ToString(),
-            Type.Other => other,
+            Type.Color => Color.ToString(),
+            Type.Number => Number.ToString(),
+            Type.Other => Other,
             Type.Undefined => "undefined",
             _ => throw new NotImplementedException(),
         };
 
-        public override readonly bool Equals(object obj) => obj is Value other && this.Equals(other);
+        public override readonly bool Equals(object? obj) => obj is Value other && this.Equals(other);
 
         public readonly bool Equals(Value other) =>
             this.type == other.type &&
-            this.color.Value == other.color.Value &&
-            this.number.Value == other.number.Value &&
+            this.color == other.color &&
+            this.number == other.number &&
             this.other == other.other;
 
         public override readonly int GetHashCode() => type switch
         {
-            Type.Color => HashCode.Combine(type, color.Value),
-            Type.Number => HashCode.Combine(type, number.Value),
+            Type.Color => HashCode.Combine(type, Color),
+            Type.Number => HashCode.Combine(type, Number),
             Type.Other => HashCode.Combine(type, other),
             _ => HashCode.Combine(type),
         };
@@ -409,13 +425,13 @@ namespace ProgrammingLanguage.Css
         public static bool operator ==(Value a, string b) => a.type == Type.Other && a.other == b;
         public static bool operator !=(Value a, string b) => !(a == b);
 
-        public static bool operator ==(Value a, int b) => a.type == Type.Number && a.number.Value == b;
+        public static bool operator ==(Value a, int b) => a.type == Type.Number && a.Number == b;
         public static bool operator !=(Value a, int b) => !(a == b);
 
-        public static bool operator ==(Value a, float b) => a.type == Type.Number && a.number.Value == b;
+        public static bool operator ==(Value a, float b) => a.type == Type.Number && a.Number == b;
         public static bool operator !=(Value a, float b) => !(a == b);
 
-        public static bool operator ==(Value a, Color b) => a.type == Type.Color && a.color.Value == b;
+        public static bool operator ==(Value a, Color b) => a.type == Type.Color && a.Color == b;
         public static bool operator !=(Value a, Color b) => !(a == b);
     }
 
@@ -464,9 +480,9 @@ namespace ProgrammingLanguage.Css
             Unit = unit;
         }
 
-        public override readonly string ToString() => $"{Value}{((Unit == Unit.None) ? "" : Unit.ToString().ToLower())}";
+        public override readonly string ToString() => $"{Value}{((Unit == Unit.None) ? string.Empty : Unit.ToString().ToLower())}";
 
-        public override readonly bool Equals(object obj) => obj is Number other && this.Equals(other);
+        public override readonly bool Equals(object? obj) => obj is Number other && this.Equals(other);
 
         public readonly bool Equals(Number other) =>
             this.Value == other.Value &&
@@ -510,7 +526,7 @@ namespace ProgrammingLanguage.Css
         public static bool operator ==(Color a, Color b) => a.Equals(b);
         public static bool operator !=(Color a, Color b) => !a.Equals(b);
 
-        public override readonly bool Equals(object obj) => obj is Color other && this.Equals(other);
+        public override readonly bool Equals(object? obj) => obj is Color other && this.Equals(other);
 
         public readonly bool Equals(Color other) =>
             this.R == other.R &&
@@ -542,6 +558,7 @@ namespace ProgrammingLanguage.Css
 
 
         internal static Color Black => new(0, 0, 0);
+        internal static Color Gray => new(127, 127, 127);
         internal static Color White => new(255, 255, 255);
         internal static Color Red => new(255, 0, 0);
         internal static Color Green => new(0, 255, 0);
@@ -603,7 +620,9 @@ namespace ProgrammingLanguage.Css
 
     public class Parser
     {
+#pragma warning disable CS8618
         string text;
+#pragma warning restore CS8618
         int i = 0;
 
         bool Have => i < text.Length;
@@ -630,11 +649,7 @@ namespace ProgrammingLanguage.Css
                 { continue; }
                 if (declarations.Length == 0)
                 { continue; }
-                stylesheet.rules.Add(new Rule()
-                {
-                    selector = selector,
-                    declarations = new DeclarationsContainer(declarations),
-                });
+                stylesheet.rules.Add(new Rule(selector, declarations));
             }
 
             return stylesheet;
@@ -644,7 +659,7 @@ namespace ProgrammingLanguage.Css
 
         bool SkipComment()
         {
-            string prevChars = "";
+            string prevChars = string.Empty;
             int startI = i;
             while (Have)
             {
@@ -689,7 +704,7 @@ namespace ProgrammingLanguage.Css
             }
         }
 
-        string ConsumeInBetween(char startCharacter, char stopCharacter, bool skipComment = true)
+        string? ConsumeInBetween(char startCharacter, char stopCharacter, bool skipComment = true)
         {
             if (skipComment)
             {
@@ -757,7 +772,7 @@ namespace ProgrammingLanguage.Css
 
         string ConsumeUntil(string stopAfterThis, bool skipComment = true)
         {
-            string result = "";
+            string result = string.Empty;
             while (Have)
             {
                 if (result.EndsWith(stopAfterThis))
@@ -856,18 +871,18 @@ namespace ProgrammingLanguage.Css
         Declaration[] ParseDeclarations()
         {
             SkipComments();
-            string contentRaw = ConsumeInBetween('{', '}');
+            string? contentRaw = ConsumeInBetween('{', '}');
 
             if (string.IsNullOrWhiteSpace(contentRaw))
             {
                 Debug.Log("[CSS/Parser]: Empty rule");
-                return new Declaration[] { };
+                return Array.Empty<Declaration>();
             }
 
             if (contentRaw.Contains('{'))
             {
                 Debug.LogWarning("[CSS/Parser]: Declaration segment must not have character '{'");
-                return new Declaration[] { };
+                return Array.Empty<Declaration>();
             }
 
             string[] declarationsRaw;
@@ -926,8 +941,10 @@ namespace ProgrammingLanguage.Css
 
         static bool TryParseFunction(string raw, out string functionName, out string[] parameters)
         {
+#pragma warning disable CS8625
             functionName = null;
             parameters = null;
+#pragma warning restore CS8625
 
             if (!raw.Contains('('))
             { return false; }
@@ -960,7 +977,7 @@ namespace ProgrammingLanguage.Css
         {
             List<string> result = new();
 
-            string currentParameter = "";
+            string currentParameter = string.Empty;
 
             bool inString = false;
             int parenthesis = 0;
@@ -973,7 +990,7 @@ namespace ProgrammingLanguage.Css
                 {
                     if (currentParameter.Length > 0)
                     { result.Add(currentParameter); }
-                    currentParameter = "";
+                    currentParameter = string.Empty;
                     continue;
                 }
 
@@ -995,7 +1012,7 @@ namespace ProgrammingLanguage.Css
             return result.ToArray();
         }
 
-        List<Declaration> OrganizeDeclarations(List<Declaration> declarations, int endlessSafe = 0)
+        static List<Declaration> OrganizeDeclarations(List<Declaration> declarations, int endlessSafe = 0)
         {
             if (endlessSafe > 500)
             { throw new EndlessLoopException(); }
@@ -1259,7 +1276,7 @@ namespace ProgrammingLanguage.Css
             return newList;
         }
 
-        Value[] ParseValues(string[] raw)
+        static Value[] ParseValues(string[] raw)
         {
             List<Value> values = new();
 
@@ -1278,7 +1295,7 @@ namespace ProgrammingLanguage.Css
             return values.ToArray();
         }
 
-        Value? TryParseValue(string raw)
+        static Value? TryParseValue(string raw)
         {
             if (TryParseFunction(raw, out _, out _))
             {
@@ -1358,7 +1375,7 @@ namespace ProgrammingLanguage.Css
             if (string.IsNullOrWhiteSpace(raw))
             { return false; }
 
-            string num = "";
+            string num = string.Empty;
             bool isFloat = false;
             bool isNegative = false;
 
@@ -1435,7 +1452,9 @@ namespace ProgrammingLanguage.Css
 
         static bool TryParseIdentifier(string raw, out string identifier)
         {
+#pragma warning disable CS8625
             identifier = null;
+#pragma warning restore CS8625
 
             if (string.IsNullOrWhiteSpace(raw))
             { return false; }
@@ -1459,7 +1478,9 @@ namespace ProgrammingLanguage.Css
 
         static bool TryParseString(string raw, out string value)
         {
+#pragma warning disable CS8625
             value = null;
+#pragma warning restore CS8625
 
             if (string.IsNullOrWhiteSpace(raw))
             { return false; }

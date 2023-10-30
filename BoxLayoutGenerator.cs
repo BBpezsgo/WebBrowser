@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Numerics;
 using GraphicsElementGenerator;
 using HtmlAgilityPack;
 using ProgrammingLanguage.Css;
@@ -10,9 +9,9 @@ namespace BoxLayout
 {
     public static class NodeUtils
     {
-        public static string TakeText(LayoutBox node)
+        public static string? TakeText(LayoutBox node)
             => NodeUtils.TakeText(node.Node);
-        public static string TakeText(HtmlNode node)
+        public static string? TakeText(HtmlNode node)
         {
             switch (node.NodeType)
             {
@@ -50,10 +49,10 @@ namespace BoxLayout
 
         string GetDebuggerDisplay() => Node.NodeType switch
         {
-            HtmlNodeType.Document => $"Document {{ {Dimensions.Content.size.X}px ; {Dimensions.Content.size.Y}px }}",
-            HtmlNodeType.Element => $"<{Node.Name} width={Dimensions.Content.size.X}px height={Dimensions.Content.size.Y}px>",
+            HtmlNodeType.Document => $"Document {{ {Dimensions.Content.Size.X}px ; {Dimensions.Content.Size.Y}px }}",
+            HtmlNodeType.Element => $"<{Node.Name} width={Dimensions.Content.Size.X}px height={Dimensions.Content.Size.Y}px>",
             HtmlNodeType.Comment => $"<!-- {Node.InnerText} -->",
-            HtmlNodeType.Text => $"\"{Node.InnerText.Trim()}\" {{ {Dimensions.Content.size.X}px ; {Dimensions.Content.size.Y}px }}",
+            HtmlNodeType.Text => $"\"{Node.InnerText.Trim()}\" {{ {Dimensions.Content.Size.X}px ; {Dimensions.Content.Size.Y}px }}",
             _ => $"Bruh",
         };
     }
@@ -195,7 +194,7 @@ namespace BoxLayout
 
         public static BoxDisplay GetDisplay(this DeclarationsContainer childStyles)
         {
-            string displayValue = childStyles.GetString("display");
+            string? displayValue = childStyles.GetString("display");
 
             return displayValue switch
             {
@@ -211,22 +210,35 @@ namespace BoxLayout
 
     public class BoxLayoutGenerator
     {
-        Stylesheet[] Stylesheets;
+        readonly Stylesheet[] Stylesheets;
 
-        TextMeasurer TextMeasurer;
-        ImageSizeGetter ImageSizeGetter;
+        readonly TextMeasurer TextMeasurer;
+        readonly ImageSizeGetter ImageSizeGetter;
 
-        int FontSize;
-        float BoxScale;
+        readonly int FontSize;
+        readonly float BoxScale;
 
         // RectInt Viewport;
-        HtmlDocument Document;
+        readonly HtmlDocument Document;
+
+        public BoxLayoutGenerator(Stylesheet[] stylesheets, TextMeasurer textMeasurer, ImageSizeGetter imageSizeGetter, int fontSize, float boxScale, HtmlDocument document)
+        {
+            Stylesheets = stylesheets;
+            TextMeasurer = textMeasurer;
+            ImageSizeGetter = imageSizeGetter;
+            FontSize = fontSize;
+            BoxScale = boxScale;
+            Document = document;
+        }
 
         Vector2Int MeasureText(string text, int fontSize) => TextMeasurer?.Invoke(text, fontSize) ?? Vector2Int.Zero;
         Vector2Int MeasureText(LayoutBox node, int fontSize) => MeasureText(node.Node, fontSize);
         Vector2Int MeasureText(HtmlNode node, int fontSize)
         {
-            string text = NodeUtils.TakeText(node);
+            string? text = NodeUtils.TakeText(node);
+
+            if (string.IsNullOrWhiteSpace(text)) return Vector2Int.Zero;
+
             return TextMeasurer?.Invoke(text, fontSize) ?? Vector2Int.Zero;
         }
 
@@ -237,7 +249,7 @@ namespace BoxLayout
 
             if (TextMeasurer == null) return false;
 
-            string text = NodeUtils.TakeText(node);
+            string? text = NodeUtils.TakeText(node);
 
             if (string.IsNullOrWhiteSpace(text)) return false;
 
@@ -277,18 +289,9 @@ namespace BoxLayout
 
         public static LayoutBox LayoutDocument(HtmlDocument document, IEnumerable<Stylesheet> stylesheets, RectInt area, TextMeasurer textMeasurer, ImageSizeGetter imageSizeGetter)
         {
-            BoxLayoutGenerator generator = new()
-            {
-                TextMeasurer = textMeasurer,
-                ImageSizeGetter = imageSizeGetter,
-                Stylesheets = stylesheets.ToArray(),
-                FontSize = 8,
-                BoxScale = .5f,
-                // Viewport = new RectInt(area.xMin, area.yMin, area.Width, area.Height),
-                Document = document,
-            };
+            BoxLayoutGenerator generator = new(stylesheets.ToArray(), textMeasurer, imageSizeGetter, 12, 1f, document);
 
-            Dimensions rootDimensions = new(new RectInt(area.xMin, area.yMin, area.Width, 0));
+            Dimensions rootDimensions = new(new RectInt(area.Left, area.Top, area.Width, 0));
             LayoutBox root = new(document.DocumentNode, Dimensions.Zero, BoxDisplay.Block);
             generator.Layout(root, rootDimensions);
             return root;
@@ -468,7 +471,7 @@ namespace BoxLayout
             }
             else if (margin.Left.IsNumber && margin.Right.IsNumber)
             {
-                margin.Right = new Value(new Number(ConvertToPixels(dimensions, margin.Right.number.Value) + underflow, Unit.Pixels));
+                margin.Right = new Value(new Number(ConvertToPixels(dimensions, margin.Right.Number) + underflow, Unit.Pixels));
             }
             else if (margin.Left.IsNumber && margin.Right == "auto")
             {
@@ -531,7 +534,7 @@ namespace BoxLayout
             d.Padding.SetVertical((style.GetSidesPx("padding") * BoxScale).ToInt());
 
             d.Content.X = dimensions.Content.X + d.ExtraSides.Left;
-            d.Content.Y = dimensions.Content.yMax + d.ExtraSides.Top;
+            d.Content.Y = dimensions.Content.Bottom + d.ExtraSides.Top;
         }
 
         void CalculateHeight(LayoutBox node, Dimensions dimensions)
@@ -608,6 +611,8 @@ namespace BoxLayout
                         HtmlNodeType.Element => child.Name switch
                         {
                             "table" => BoxDisplay.Table,
+                            "script" => BoxDisplay.None,
+                            "style" => BoxDisplay.None,
                             _ => childDisplay,
                         },
                         HtmlNodeType.Comment => BoxDisplay.None,
@@ -782,12 +787,10 @@ namespace BoxLayout
 
         HtmlTextNode[] BreakText(HtmlTextNode node, int maxWidth)
         {
-            if (node == null) return null;
-
             List<HtmlTextNode> result = new();
 
             List<string> remaingWords = new(node.Text.Split(' ', '\n', '\r', '\t'));
-            string currentText = "";
+            string currentText = string.Empty;
 
             int endlessSafe = 0;
             while (remaingWords.Count > 0)
@@ -798,7 +801,7 @@ namespace BoxLayout
                 if (string.IsNullOrWhiteSpace(word))
                 { continue; }
 
-                string space = "";
+                string space = string.Empty;
                 if (currentText.Length > 0)
                 {
                     space = " ";
@@ -824,7 +827,7 @@ namespace BoxLayout
             if (!string.IsNullOrWhiteSpace(currentText))
             {
                 result.Add(Document.CreateTextNode(currentText));
-                currentText = "";
+                currentText = string.Empty;
             }
 
             return result.ToArray();

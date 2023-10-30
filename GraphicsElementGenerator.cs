@@ -29,11 +29,14 @@ namespace GraphicsElementGenerator
     {
         public string Text;
         public Color Color;
-        public string Link;
+
+        public string? Link;
         public ushort LinkID;
 
-        public ElementLabel(LayoutBox box) : base(box)
+        public ElementLabel(LayoutBox box, string text, Color color) : base(box)
         {
+            Text = text;
+            Color = color;
         }
 
         public override ElementKind Kind => ElementKind.Text;
@@ -63,10 +66,12 @@ namespace GraphicsElementGenerator
     {
         public string Text;
         public override ElementKind Kind => ElementKind.Button;
-        public ElementForm Form;
+        public ElementForm? Form;
 
-        public ElementButton(LayoutBox box) : base(box)
+        public ElementButton(LayoutBox box, string? text, ushort id) : base(box)
         {
+            Text = text ?? string.Empty;
+            ID = id;
         }
 
         public sealed override string ToString() => $"{base.ToString()} {{ Text: \"{Text}\" }}";
@@ -74,7 +79,7 @@ namespace GraphicsElementGenerator
 
     public class ElementImage : Element
     {
-        public string Url;
+        public string? Url;
         public byte ImageID;
 
         public ElementImage(LayoutBox box) : base(box)
@@ -88,13 +93,16 @@ namespace GraphicsElementGenerator
 
     public class ElementTextField : ElementFocusable
     {
-        public string Name;
+        public string? Name;
         internal TextInputField Manager;
         public override ElementKind Kind => ElementKind.InputText;
-        public ElementForm Form;
+        public ElementForm? Form;
 
-        public ElementTextField(LayoutBox box) : base(box)
+        public ElementTextField(LayoutBox box, string? value, ushort id) : base(box)
         {
+            Name = null;
+            Manager = new TextInputField(value);
+            ID = id;
         }
 
         public sealed override string ToString() => $"{base.ToString()} {{ Name: \"{Name}\" Value: \"{Manager?.Buffer}\" }}";
@@ -105,12 +113,14 @@ namespace GraphicsElementGenerator
         public (string Value, string Label)[] Values;
         public int SelectedIndex;
 
-        public ElementSelect(LayoutBox box) : base(box)
+        public ElementSelect(LayoutBox box, ushort id) : base(box)
         {
+            Values = Array.Empty<(string Value, string Label)>();
+            ID = id;
         }
 
         public (string Value, string Label)? Selected => (SelectedIndex < 0 || SelectedIndex > Values.Length) ? null : Values[SelectedIndex];
-        public string Label => (SelectedIndex < 0 || SelectedIndex > Values.Length) ? null : Values[SelectedIndex].Label;
+        public string? Label => (SelectedIndex < 0 || SelectedIndex > Values.Length) ? null : Values[SelectedIndex].Label;
 
         public override ElementKind Kind => ElementKind.Select;
 
@@ -125,8 +135,11 @@ namespace GraphicsElementGenerator
         internal string Method;
         internal string Target;
 
-        public ElementForm(LayoutBox box) : base(box)
+        public ElementForm(LayoutBox box, ushort id, string target, string method) : base(box)
         {
+            ID = id;
+            Target = target;
+            Method = method;
         }
 
         public sealed override string ToString() => $"{base.ToString()} {{ Method: \"{Method}\" Target: \"{Target}\" }}";
@@ -197,7 +210,7 @@ namespace GraphicsElementGenerator
         public readonly List<Stylesheet> Stylesheets;
         public readonly List<Element> Elements;
 
-        TextMeasurer? MeasureText;
+        TextMeasurer MeasureText;
         ImageSizeGetter? GetImageSize;
 
         ushort ElementIDCounter;
@@ -211,7 +224,7 @@ namespace GraphicsElementGenerator
         public int OverflowX => overflow.X;
         public int OverflowY => overflow.Y;
 
-        public Vector2Int PageSize => overflow + PageArea.size;
+        public Vector2Int PageSize => overflow + PageArea.Size;
         public int PageWidth => PageSize.X;
         public int PageHeight => PageSize.Y;
 
@@ -242,7 +255,8 @@ namespace GraphicsElementGenerator
             PageArea = default;
             overflow = Vector2Int.Zero;
 
-            MeasureText = null;
+            MeasureText = MeasureTextDefault;
+            GetImageSize = null;
         }
 
         public void Reset()
@@ -265,8 +279,11 @@ namespace GraphicsElementGenerator
             PageArea = default;
             overflow = Vector2Int.Zero;
 
-            MeasureText = null;
+            MeasureText = MeasureTextDefault;
+            GetImageSize = null;
         }
+
+        static Vector2Int MeasureTextDefault(string text, int fontSize) => Vector2Int.Zero;
 
         NeedThisImage GetOrCreateImage(string url)
         {
@@ -289,9 +306,9 @@ namespace GraphicsElementGenerator
             return newImage;
         }
 
-        public ElementWithID GetElementByID(ushort id)
+        public ElementWithID? GetElementByID(ushort id)
         {
-            foreach (var element in Elements)
+            foreach (Element element in Elements)
             {
                 if (element is ElementWithID elementFocusable && elementFocusable.ID == id)
                 {
@@ -307,6 +324,7 @@ namespace GraphicsElementGenerator
             {
                 if (Elements[i] is ElementButton button)
                 {
+                    if (button.Form == null) continue;
                     if (button.Form.ID == form.ID)
                     {
                         result.Add(button);
@@ -315,6 +333,7 @@ namespace GraphicsElementGenerator
                 }
                 else if (Elements[i] is ElementTextField textField)
                 {
+                    if (textField.Form == null) continue;
                     if (textField.Form.ID == form.ID)
                     {
                         result.Add(textField);
@@ -335,7 +354,7 @@ namespace GraphicsElementGenerator
 
             LayoutBox root = BoxLayoutGenerator.LayoutDocument(document, Stylesheets, PageArea, textMeasurer, imageSizeGetter);
 
-            overflow = root.Dimensions.MarginRect.size - PageArea.size;
+            overflow = root.Dimensions.MarginRect.Size - PageArea.Size;
 
             GenerateElement(root, DeclarationsContainer.Empty);
         }
@@ -349,7 +368,7 @@ namespace GraphicsElementGenerator
 
             DeclarationsContainer newStyles = new(collectedStyles);
 
-            Action after;
+            Action? after;
 
             switch (layoutBox.Node.NodeType)
             {
@@ -386,10 +405,10 @@ namespace GraphicsElementGenerator
         {
             if (layoutBox.Node.NodeType != HtmlNodeType.Text) return;
 
-            string text = GeneratorUtils.ConvertHtmlText(layoutBox.Node.InnerText);
+            string? text = GeneratorUtils.ConvertHtmlText(layoutBox.Node.InnerText);
             if (string.IsNullOrWhiteSpace(text)) return;
 
-            string link = null;
+            string? link = null;
             if (LinkStack.Count > 0)
             { link = LinkStack.Peek(); }
             Color defaultColor = Color.White;
@@ -397,11 +416,7 @@ namespace GraphicsElementGenerator
             if (!string.IsNullOrWhiteSpace(link))
             { defaultColor = Color.Blue; }
 
-            ElementLabel element = new(layoutBox)
-            {
-                Text = text,
-                Color = GeneratorUtils.FixColor(style.GetColor("color") ?? defaultColor),
-            };
+            ElementLabel element = new(layoutBox, text, GeneratorUtils.FixColor(style.GetColor("color") ?? defaultColor));
             if (!string.IsNullOrWhiteSpace(link))
             {
                 element.LinkID = LinkIDCounter;
@@ -410,7 +425,7 @@ namespace GraphicsElementGenerator
             Elements.Add(element);
         }
 
-        bool GenerateElementForElement(LayoutBox layoutBox, DeclarationsContainer styles, out Action after)
+        bool GenerateElementForElement(LayoutBox layoutBox, DeclarationsContainer styles, out Action? after)
         {
             after = null;
 
@@ -418,11 +433,7 @@ namespace GraphicsElementGenerator
 
             if (layoutBox.Node.Name == "button")
             {
-                Elements.Add(new ElementButton(layoutBox)
-                {
-                    Text = layoutBox.Node.InnerText,
-                    ID = ElementIDCounter++,
-                });
+                Elements.Add(new ElementButton(layoutBox, layoutBox.Node.InnerText, ElementIDCounter++));
 
                 return true;
             }
@@ -453,12 +464,10 @@ namespace GraphicsElementGenerator
                 string inputType = layoutBox.Node.GetAttributeValue("type", null);
                 if (inputType == "text" || string.IsNullOrWhiteSpace(inputType))
                 {
-                    string text = GeneratorUtils.ConvertHtmlText(layoutBox.Node.GetAttributeValue("value", ""));
+                    string? text = GeneratorUtils.ConvertHtmlText(layoutBox.Node.GetAttributeValue("value", ""));
 
-                    Elements.Add(new ElementTextField(layoutBox)
+                    Elements.Add(new ElementTextField(layoutBox, text, ElementIDCounter++)
                     {
-                        Manager = new TextInputField(text),
-                        ID = ElementIDCounter++,
                         Form = FormStack.PeekOrDefault(),
                         Name = layoutBox.Node.GetAttributeValue("name", string.Empty),
                     });
@@ -468,12 +477,10 @@ namespace GraphicsElementGenerator
 
                 if (inputType == "submit")
                 {
-                    string text = GeneratorUtils.ConvertHtmlText(layoutBox.Node.GetAttributeValue("value", "Submit"));
+                    string? text = GeneratorUtils.ConvertHtmlText(layoutBox.Node.GetAttributeValue("value", "Submit"));
 
-                    Elements.Add(new ElementButton(layoutBox)
+                    Elements.Add(new ElementButton(layoutBox, text, ElementIDCounter++)
                     {
-                        Text = text,
-                        ID = ElementIDCounter++,
                         Form = FormStack.PeekOrDefault(),
                     });
 
@@ -494,7 +501,7 @@ namespace GraphicsElementGenerator
                 {
                     if (child.Name != "option") continue;
                     string value = child.GetAttributeValue("value", null);
-                    string label = GeneratorUtils.ConvertHtmlText(child.InnerText).Trim();
+                    string? label = GeneratorUtils.ConvertHtmlText(child.InnerText)?.Trim();
 
                     if (string.IsNullOrWhiteSpace(label)) continue;
                     values.Add((value, label));
@@ -502,11 +509,10 @@ namespace GraphicsElementGenerator
                     longest = Math.Max(longest, MeasureText.Invoke(label, 8).X);
                 }
 
-                Elements.Add(new ElementSelect(layoutBox)
+                Elements.Add(new ElementSelect(layoutBox, ElementIDCounter++)
                 {
                     Values = values.ToArray(),
                     SelectedIndex = 0,
-                    ID = ElementIDCounter++,
                 });
 
                 return true;
@@ -514,12 +520,7 @@ namespace GraphicsElementGenerator
 
             if (layoutBox.Node.Name == "form")
             {
-                ElementForm newForm = new(layoutBox)
-                {
-                    ID = ElementIDCounter++,
-                    Method = layoutBox.Node.GetAttributeValue("method", "POST"),
-                    Target = layoutBox.Node.GetAttributeValue("target", "./"),
-                };
+                ElementForm newForm = new(layoutBox, ElementIDCounter++, layoutBox.Node.GetAttributeValue("target", "./"), layoutBox.Node.GetAttributeValue("method", "POST"));
                 Elements.Add(newForm);
                 Forms.Add(newForm);
 

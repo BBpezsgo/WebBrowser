@@ -113,10 +113,10 @@
             CursorPosition = 0;
         }
 
-        public TextInputField(string value)
+        public TextInputField(string? value)
         {
-            Buffer = value;
-            CursorPosition = value?.Length ?? 0;
+            Buffer = value ?? string.Empty;
+            CursorPosition = Buffer.Length;
         }
 
         public void FeedKey(KeyCode key)
